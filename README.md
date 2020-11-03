@@ -36,4 +36,41 @@ curl localhost:8080
 - Take public dns from console & hit: `http://<public_dns>:8080`
 - Now can create a budget for EC2 instance in Billing section
 
-## Infrastructure as Code
+## Infrastructure as Code - CloudFormation
+
+**AWS CLI**
+```bash
+# setup profile with access & secret key
+aws configure --profile awsbootstrap
+# check it is setup:
+aws ec2 describe-instances --profile awsbootstrap
+```
+
+**Cloud Formation**
+- we use a script to execute the cloud formation template
+- create `deploy-infra.sh`
+- copy contents below
+- make executable: `chmod +x deploy-infra.sh`
+```bash
+#!/bin/bash
+
+STACK_NAME=awsbootstrap 
+# STACK_NAME refers to group of resources we will manage
+REGION=eu-west-1 
+CLI_PROFILE=awsbootstrap
+# CLI_PROFILE is the profile we have set up
+
+EC2_INSTANCE_TYPE=t2.micro 
+
+# Deploy the CloudFormation template
+echo -e "\n\n=========== Deploying main.yml ==========="
+aws cloudformation deploy \
+--region $REGION \
+--profile $CLI_PROFILE \
+--stack-name $STACK_NAME \
+--template-file main.yml \
+--no-fail-on-empty-changeset \
+--capabilities CAPABILITY_NAMED_IAM \
+--parameter-overrides \
+  EC2InstanceType=$EC2_INSTANCE_TYPE
+```
