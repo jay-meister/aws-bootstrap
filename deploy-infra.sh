@@ -6,7 +6,6 @@ CLI_PROFILE=awsbootstrap
 
 EC2_INSTANCE_TYPE=t2.micro 
 
-
 # programatically get AWS account ID - useful as S3 bucket names must be unique
 AWS_ACCOUNT_ID=`aws sts get-caller-identity --profile awsbootstrap \ 
   --query "Account" --output text`
@@ -14,6 +13,8 @@ CODEPIPELINE_BUCKET="$STACK_NAME-$REGION-codepipeline-$AWS_ACCOUNT_ID"
 
 
 # Deploys static resources
+# sets up bucket to be used by CodePipeline
+# we do this separately as CloudFormation cannot delete S3 buckets
 echo -e "\n\n=========== Deploying setup.yml ===========" 
 aws cloudformation deploy \
   --region $REGION \
@@ -39,6 +40,7 @@ aws cloudformation deploy \
   EC2InstanceType=$EC2_INSTANCE_TYPE
 
 # If the deploy succeeded, show the DNS name of the created instance
+
 if [ $? -eq 0 ]; then
   aws cloudformation list-exports \
   --profile awsbootstrap \

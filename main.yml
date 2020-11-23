@@ -6,10 +6,13 @@ Parameters:
   EC2AMI:
     Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
     Default: '/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2'
+  CodePipelineBucket:
+    Type: String
+    Description: 'The S3 bucket for CodePipeline artefacts'
 
 Resources:
 
-  # SecurityGroup acts as Firewall
+# SecurityGroup acts as Firewall
   SecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -31,6 +34,7 @@ Resources:
           # !Ref function for referencing other resources within stack 
           Value: !Ref AWS::StackName 
 
+# IAM Role which EC2 instance will use to define permissions
   InstanceRole:
     Type: "AWS::IAM::Role"
     Properties:
@@ -48,12 +52,14 @@ Resources:
         - Key: Name
           Value: !Ref AWS::StackName
 
+# Instance Profile used to tie our IAM role to the EC2 instance
   InstanceProfile:
     Type: "AWS::IAM::InstanceProfile"
     Properties:
       Roles:
       - Ref: InstanceRole
 
+# Define our EC2 instance
   Instance:
     Type: AWS::EC2::Instance 
     CreationPolicy: 
@@ -128,8 +134,75 @@ Resources:
       Tags:
         - Key: Name
           Value: !Ref AWS::StackName
-  
- 
+
+# New managed policy to allow EC2 instance to access CodeDeploy
+  InstanceRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument: 
+        Version: "2012-10-17" 
+        Statement:
+          Effect: Allow
+          Principal:
+            Service:
+              - "ec2.amazonaws.com"
+          Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/CloudWatchFullAccess
+        - arn:aws:iam::aws:policy/service-role/AmazonEC2RoleforAWSCodeDeploy 
+      Tags:
+        - Key: Name
+        Value: !Ref AWS::StackName
+
+# New IAM role to allow CodeBuild CodeDeploy CodePipeline to access our AWS resources
+  DeploymentRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument: 
+        Version: "2012-10-17" 
+        Statement:
+          Effect: Allow
+          Principal:
+            Service:
+              - codepipeline.amazonaws.com 
+              - codedeploy.amazonaws.com
+              - codebuild.amazonaws.com
+          Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/PowerUserAccess
+
+# Define CodeBuild project
+  BuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: !Ref AWS::StackName
+      ServiceRole: !GetAtt DeploymentRole.Arn 
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        Type: LINUX_CONTAINER 
+        ComputeType: BUILD_GENERAL1_SMALL 
+        Image: aws/codebuild/standard:2.0
+      Source:
+        Type: CODEPIPELINE
+
+# Define CodeDeploy application - lets CodeDeploy know our deployment target is EC2
+  DeploymentApplication:
+    Type: AWS::CodeDeploy::Application
+    Properties:
+      ApplicationName: !Ref AWS::StackName 
+      ComputePlatform: Server 
+
+# CodeDeploy needs a DeploymentGroup
+  StagingDeploymentGroup:
+     Type: AWS::CodeDeploy::DeploymentGroup
+     DependsOn: Instance
+     Properties:
+DeploymentGroupName: staging
+ApplicationName: !Ref DeploymentApplication DeploymentConfigName: CodeDeployDefault.AllAtOnce ❶ ServiceRoleArn: !GetAtt DeploymentRole.Arn Ec2TagFilters: ❷
+- Key: aws:cloudformation:stack-name Type: KEY_AND_VALUE
+Value: !Ref AWS::StackName
+
 Outputs:
   InstanceEndpoint:
     Description: The DNS name for the created instance 

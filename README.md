@@ -81,7 +81,7 @@ aws cloudformation deploy \
 - Resources: - to define/configure resources CloudFormation will mangage
 - Outputs: - allows us to locate created resources
 - CloudFormation notes:
-```yaml
+```yml
 # !Sub CloudFormation function for string interpolation '${}'
 #   eg: !Sub "http://${Instance.PublicDnsName}:8080" 
 
@@ -94,7 +94,7 @@ aws cloudformation deploy \
 # AWS::StackName a pseudo parameter
 ```
 
-```yaml
+```yml
 Parameters:
   EC2InstanceType:
 
@@ -140,12 +140,13 @@ $ echo "<username>" > ~/.github/aws-bootstrap-owner
 $ echo "<token>" > ~/.github/aws-bootstrap-access-token 
 ```
 
-#### S3 Buckets for build artefacts - setup.yaml
+#### S3 Buckets for build artefacts - setup.yml
 - CodePipeline requires S3 Bucket to store artefacts built by CodeBuild
 - CloudFormation cannot delete non-empty buckets so we put in separate stack - setup
+- `deploy-infra.sh` runs this before running `main.yml`
 
-```yaml
-# setup.yaml
+```yml
+# setup.yml
 AWSTemplateFormatVersion: 2010-09-09
 
   Parameters:
@@ -155,4 +156,18 @@ AWSTemplateFormatVersion: 2010-09-09
     CodePipelineS3Bucket:
       Type: AWS::S3::Bucket
 ```
+
+#### Start & Stop scripts
+- `start-service.sh` runs `npm run start`
+- `stop-service.sh` runs `npm stop`
+
+#### CodeBuild specification - `buildspec.yml`
+- Tell CodeBuild how to build our application
+- CodeBuild has a specification which we use in `buildspec.yml`
+- Runs `npm install && npm run build` and specifies relevant artefacts
+- eg. node_modules, start/stop-service, server.js, package.json, appspec.yml
+
+#### CodeDeploy specification - `appspec.yml`
+- Tell CodeDeploy what to do with CodeBuild artefacts
+
 
